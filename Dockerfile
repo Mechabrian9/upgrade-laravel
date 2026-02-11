@@ -1,23 +1,27 @@
-# Base image with Nginx + PHP-FPM (optimized for Laravel)
-FROM richarvey/nginx-php-fpm:php-83
+# Modern Nginx + PHP 8.3 for Laravel (maintained image)
+FROM webdevops/php-nginx:8.3-alpine
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /app
 
 # Copy your app code
-COPY . /var/www/html
+COPY . /app
 
-# Install Composer dependencies (production only)
+# Set document root to Laravel's public folder
+ENV WEB_DOCUMENT_ROOT=/app/public
+
+# Optional: Increase memory limit if needed (for Composer/build)
+ENV PHP_MEMORY_LIMIT=2G
+
+# Install dependencies (production only)
 RUN composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
 
-# Cache Laravel config/routes/views for performance
+# Laravel optimizations
 RUN php artisan config:cache \
     && php artisan route:cache \
-    && php artisan view:cache
+    && php artisan view:cache \
+    && php artisan storage:link
 
-# Create storage symlink
-RUN php artisan storage:link
-
-# Fix permissions (important for storage/logs/uploads)
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# Fix permissions for storage/bootstrap cache
+RUN chown -R application:application /app/storage /app/bootstrap/cache \
+    && chmod -R 775 /app/storage /app/bootstrap/cache
